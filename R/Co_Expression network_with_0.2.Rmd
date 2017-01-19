@@ -1,0 +1,175 @@
+---
+title: "Petal"
+author: "Ira Cook and Natalia Andrade"
+date: "19/10/2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+setwd("~/Dropbox/Mio/Github/Co-expression_analysis") 
+
+library("devtools")
+install_github('julipetal/petalNet/src/petal')
+library(petal)
+library(dplyr)
+library(tidyr)
+library(igraph)
+
+# Raw_data in : https://www.dropbox.com/sh/wysrbxbalhdwlhf/AAD1rMBOlxT9gjGFP9Fa-yUBa?dl=0
+```
+
+#Step 0: Prepare matrix of genes to be use
+```{r car} 
+# We will use genes DE among all samples found with DESeq2 with a padj<0.2 threshold
+
+#Change sample names :
+
+ID_samples<- read.csv("raw_data/ID sequences_Competition.csv", strip.white = TRUE)
+vsdlrt_names<- read.delim("raw_data/vsdlrt_0.2.txt")
+names(vsdlrt_names)
+
+vsdlrt_names_change<- dplyr::tbl_df(vsdlrt_names)
+names(vsdlrt_names_change)
+
+vsdlrt_names_change<- dplyr::rename(vsdlrt_names_change,LdPe = L10_S10.bam, LdPf= L11_S11.bam, LdPd= L12_S12.bam, LePe= L13_S13.bam, Le= L14_S14.bam, LePf=L15_S15.bam, LePd= L16_S16.bam, LcPe= L17_S10.bam, Lc= L18_S11.bam, LcPf= L19_S12.bam, LaPd= L1_S1.bam, LcPd= L20_S13.bam, La= L2_S2.bam, LaPf=L3_S3.bam, LaPe= L4_S4.bam, Lb= L5_S5.bam, LbPe=  L6_S6.bam, LbPd= L7_S7.bam, LbPf= L8_S8.bam, Ld= L9_S9.bam)
+names(vsdlrt_names_change)
+
+write.table(vsdlrt_names_change,sep="\t",file = "results/vsdlrt_names_0.2.txt",row.names = TRUE,quote = FALSE)
+
+
+############### Don't run this it needs to be improved ################################
+Org<- read.delim("vsdlrt_names_0.2.txt")
+names(Org)
+rownames<- row.names(Org)
+## If reruning, check that the order in Org hasn't changed !!!!
+vsdlrt_names_order<- data.frame(LaPd=Org[,8], LbPd=Org[,18], LcPd=Org[,12], LdPd=Org[,3], LePd=Org[,7], LaPe=Org[,15], LbPe=Org[,17],LcPe=Org[,8], LdPe=Org[,1], LePe=Org[,4], LaPf=Org[,14], LbPf=Org[,19], LcPf=Org[,10], LdPf=Org[,2], LePf=Org[,6], La=Org[,13], Lb=Org[,16], Lc=Org[,9], Ld=Org[,20],Le=Org[,5])
+row.names(vsdlrt_names_order)= rownames
+write.table(vsdlrt_names_order,sep="\t",file = "data/vsdlrt_order.txt",row.names = TRUE,quote = FALSE)
+#################################################################################################
+```
+
+# Sept one : Creat file to be use in petal
+I think the network will be more informative if we made it by set of treatments or interactions.
+```{r cars}
+# Use vsdlrt_order.txt : counts transformed for DE with DESeq2 with names that make more sense 
+# 910 genes form DESeq2 lrt result with threshold of adjpv<0.2 
+#*Check DESeq2 script to see how I change the names
+
+Vsdlrt<- read.table("data/vsdlrt_names_0.2.txt")
+names(Vsdlrt)
+
+LvsP<- dplyr::select(Vsdlrt, contains("P"))
+write.table(LvsP,sep="\t",file = "data/LvsP_0.2.txt",row.names = TRUE,quote = FALSE)
+
+
+L_control<- dplyr::select(Vsdlrt, one_of(c("Le","Lc","La","Lb", "Ld")))
+write.table(L_control,sep="\t",file = "data/L_control_0.2.txt",row.names = TRUE,quote = FALSE)
+
+L_Pd<- dplyr::select(Vsdlrt, contains("Pd"))
+write.table(L_Pd,sep="\t",file = "data/L_Pd_0.2.txt",row.names = TRUE,quote = FALSE)
+
+
+```
+
+# To creat network files
+````{r car}
+# Run one by one because output have the same name every time
+#Find a way to redirect the outputs to a specific file
+
+createSWSFnetFromFile("data/vsdlrt_names_0.2.txt")## Threshold : 0.792
+createSWSFnetFromFile("data/LvsP_0.2.txt") ## Threshold : 0.829
+createSWSFnetFromFile("data/L_Pd_0.2.txt") ## None of the considered thresholds produce a scale-free and small-world network
+createSWSFnetFromFile("data/L_control_0.2.txt") ## None of the considered thresholds produce a scale-free and small-world network
+
+
+# Output for  Cytospace:load MMo_SP.RData and threshold found for each network.
+
+# Creat file imidiatly after creating network because MMo as the same name for any network.
+
+#For vsdlrt_names_0.2.txt
+makeCytoFile(0.792, metric = "SP", orderedMM = MMo)
+
+#For LvsP_0.2.txt
+makeCytoFile(0.829, metric = "SP", orderedMM = MMo)
+
+``` 
+
+
+######################### I haven't run this yet #################################
+
+#Vecinity Network with clusters of PdvsLC
+```{r car}
+# Creat file with cluster IDs of all the DE genes  and Annotations
+
+PdvsLC_Genes<- read.csv('raw_data/DESeq_PdLC_0.1.csv', strip.white = T)
+names(PdvsLC_Genes)
+
+PdvsLC_Genes_0.1<- PdvsLC_Genes %>%  select(cluster_id) 
+PdvsLC_Genes_0.05<- PdvsLC_Genes%>% filter(padj<0.05) %>% select(cluster_id) 
+
+
+write.table(PdvsLC_Genes_0.1, file = "data/PdvsLC_Genes_0.1", sep=" \t")
+
+write.table(PdvsLC_Genes_0.05, file = "data/PdvsLC_Genes_0.05", sep=" \t")
+
+#Creat VN 
+dataToVNs(dataFile = "data/vsdlrt.txt", GoIFile ="data/PdvsLC_Genes_0.1")
+
+dataToVNs(dataFile = "data/vsdlrt.txt", GoIFile ="data/PdvsLC_Genes_0.05")
+
+````
+#Vecinity Network with 265  clusters of PdvsLC UPreg
+```{r car}
+# Creat file with cluster IDs of all the DE genes  and Annotations
+
+PdvsLC_GenesUP<- read.csv('data/DESeq_UPreg_Pd_0.1.csv', strip.white = T)
+names(PdvsLC_Genes)
+
+PdvsLC_GenesUP_0.1<- PdvsLC_GenesUP%>%  select(cluster_id) 
+PdvsLC_GenesUP_0.05<- PdvsLC_GenesUP%>% filter(padj<0.05) %>% select(cluster_id) 
+
+
+write.table(PdvsLC_GenesUP_0.1, file = "data/PdvsLC_GenesUP_0.1", sep=" \t")
+
+write.table(PdvsLC_GenesUP_0.05, file = "data/PdvsLC_GenesUP_0.05", sep=" \t")
+
+#Creat VN 
+dataToVNs(dataFile = "data/vsdlrt.txt", GoIFile ="data/PdvsLC_GenesUP_0.1")
+
+dataToVNs(dataFile = "data/vsdlrt.txt", GoIFile ="data/PdvsLC_GenesUP_0.05")
+
+
+````
+#Vecinity Network with 265  clusters of PdvsLC DOWNreg
+```{r car}
+# Creat file with cluster IDs of all the DE genes  and Annotations
+
+PdvsLC_GenesDOWN<- read.csv('data/DESeq_DOWNreg_Pd_0.1.csv', strip.white = T)
+names(PdvsLC_Genes)
+
+PdvsLC_GenesDOWN_0.1<- PdvsLC_GenesDOWN%>%  select(cluster_id) 
+PdvsLC_GenesDOWN_0.05<- PdvsLC_GenesDOWN%>% filter(padj<0.05) %>% select(cluster_id) 
+
+
+write.table(PdvsLC_GenesDOWN_0.1, file = "data/PdvsLC_GenesDOWN_0.1", sep=" \t")
+
+write.table(PdvsLC_GenesDOWN_0.05, file = "data/PdvsLC_GenesDOWN_0.05", sep=" \t")
+
+#Creat VN 
+dataToVNs(dataFile = "data/vsdlrt.txt", GoIFile ="data/PdvsLC_GenesDOWN_0.1")
+
+dataToVNs(dataFile = "data/vsdlrt.txt", GoIFile ="data/PdvsLC_GenesDOWN_0.05")
+
+
+````
