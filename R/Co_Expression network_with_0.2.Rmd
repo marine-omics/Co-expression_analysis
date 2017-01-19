@@ -60,7 +60,6 @@ write.table(vsdlrt_names_order,sep="\t",file = "data/vsdlrt_order.txt",row.names
 ```
 
 # Sept one : Creat file to be use in petal
-I think the network will be more informative if we made it by set of treatments or interactions.
 ```{r cars}
 # Use vsdlrt_order.txt : counts transformed for DE with DESeq2 with names that make more sense 
 # 910 genes form DESeq2 lrt result with threshold of adjpv<0.2 
